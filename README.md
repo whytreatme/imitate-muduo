@@ -11,36 +11,7 @@
 - **注册线（epoll_ctl）**：把 `fd + events + Channel*` 注册进某个 `EventLoop` 持有的 epoll 实例。
 - **触发线（epoll_wait）**：等待内核返回就绪事件，通过 `events[i].data.ptr` 找回 `Channel*`，再分发到 `Connection::onMessage()` 等回调。
 
-### Flowchart：注册线 + 触发线（对应 27 目录代码结构）
 
-```mermaid
-flowchart TD
-  A[mainloop run] --> B[Epoll loop -> epoll_wait]
-  B -->|listenfd ready| C[Channel listenfd handleEvent]
-  C --> D[Acceptor newConnection]
-  D --> E[accept -> Socket clientsock]
-  E --> F[TcpServer newConnection]
-
-  F --> G[select subloop: subloops[fd % nums_threads]]
-  G --> H[new Connection(subloop, clientsock)]
-  H --> I[new Channel(clientfd, subloop)]
-  I --> J[setReadCallback -> Connection onMessage]
-  J --> K[enableReading]
-
-  K --> L[Channel enableReading -> subloop updateChannel]
-  L --> M[EventLoop updateChannel -> Epoll updateChannel]
-  M --> N[epoll_ctl ADD or MOD: ev.data.ptr = Channel*]
-
-  subgraph IO thread subloop
-    O[subloop run] --> P[Epoll loop -> epoll_wait]
-    P -->|clientfd ready| Q[events data.ptr -> Channel*]
-    Q --> R[Channel setrevents]
-    R --> S[EventLoop iterate active Channels]
-    S --> T[Channel handleEvent]
-    T --> U[Connection onMessage]
-    U --> V[TcpServer onMessage(conn, msg)]
-  end
-```
 
 ### Sequence：回调“接力棒”时序图
 
