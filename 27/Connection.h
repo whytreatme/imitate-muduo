@@ -1,0 +1,39 @@
+#pragma once
+#include "EventLoop.h"
+#include "Socket.h"
+#include "Channel.h"
+#include <iostream>
+#include "Buffer.h"
+
+
+class Connection{
+private:
+    EventLoop *loop_;
+    Socket *clientsock_;
+    Channel *clientChannel_;
+    Buffer inputbuffer_;        //增加接受缓冲区
+    Buffer outputbuffer_;        //发送接受缓冲区
+    //回调函数区
+    std::function<void(Connection*)> closeCallback_;
+    std::function<void(Connection*)> errorCallback_;
+    std::function<void(Connection*, std::string&)> onMessageCallback_;
+    std::function<void(Connection*)> sendCompleteCallback_;
+    
+public:
+    Connection(EventLoop *loop, Socket *);
+    ~Connection();
+
+    int fd() const;
+    std::string ip() const;
+    uint16_t port() const;
+    void errorCallback();
+    void closeCallback();
+    void onMessage();
+    void send(const char *data, size_t size);
+    void writeCallback();
+
+    void setErrorCallback(std::function<void(Connection*)> fn);
+    void setCloseCallback(std::function<void(Connection*)> fn);
+    void setonMessageCallback(std::function<void(Connection*, std::string&)> fn);
+    void setsendCompleteCallback(std::function<void(Connection*)> fn);
+};
