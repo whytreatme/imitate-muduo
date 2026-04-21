@@ -15,30 +15,30 @@
 
 ```mermaid
 flowchart TD
-  A[mainloop EventLoop::run] --> B[Epoll::loop -> epoll_wait]
-  B -->|listenfd ready| C[Channel(listenfd)::handleEvent]
-  C --> D[Acceptor::newConnection]
-  D --> E[accept -> Socket* clientsock]
-  E --> F[TcpServer::newConnection]
+  A[mainloop run] --> B[Epoll loop -> epoll_wait]
+  B -->|listenfd ready| C[Channel listenfd handleEvent]
+  C --> D[Acceptor newConnection]
+  D --> E[accept -> Socket clientsock]
+  E --> F[TcpServer newConnection]
 
-  F --> G[select subloop: subloops_[fd % nums_threads]]
+  F --> G[select subloop: subloops[fd % nums_threads]]
   G --> H[new Connection(subloop, clientsock)]
   H --> I[new Channel(clientfd, subloop)]
-  I --> J[setReadCallback(Connection::onMessage)]
+  I --> J[setReadCallback -> Connection onMessage]
   J --> K[enableReading]
 
-  K --> L[Channel::enableReading -> subloop.updateChannel]
-  L --> M[EventLoop::updateChannel -> Epoll::updateChannel]
-  M --> N[epoll_ctl(ADD/MOD): ev.data.ptr = Channel*]
+  K --> L[Channel enableReading -> subloop updateChannel]
+  L --> M[EventLoop updateChannel -> Epoll updateChannel]
+  M --> N[epoll_ctl ADD or MOD: ev.data.ptr = Channel*]
 
-  subgraph IO线程中的subloop
-    O[subloop EventLoop::run] --> P[Epoll::loop -> epoll_wait]
-    P -->|clientfd ready| Q[events[i].data.ptr -> Channel*]
-    Q --> R[Channel::setrevents]
-    R --> S[EventLoop 遍历 active Channels]
-    S --> T[Channel::handleEvent]
-    T --> U[Connection::onMessage]
-    U --> V[TcpServer::onMessage(conn, msg)]
+  subgraph IO thread subloop
+    O[subloop run] --> P[Epoll loop -> epoll_wait]
+    P -->|clientfd ready| Q[events data.ptr -> Channel*]
+    Q --> R[Channel setrevents]
+    R --> S[EventLoop iterate active Channels]
+    S --> T[Channel handleEvent]
+    T --> U[Connection onMessage]
+    U --> V[TcpServer onMessage(conn, msg)]
   end
 ```
 
@@ -93,13 +93,13 @@ sequenceDiagram
 1. **谁在 wait？** `EventLoop::run()`（循环里调用 `Epoll::loop()`）
 2. **谁在 ctl？** `Epoll::updateChannel()`（`ev.data.ptr = Channel*` + `epoll_ctl(ADD/MOD)`）
 3. **谁负责分发？** `Channel::handleEvent()`（根据 `revents_` 调不同 callback）
-4. **业务最终落点？** `Connection::onMessage()` -> `TcpServer::onMessage(conn, msg)
+4. **业务最终落点？** `Connection::onMessage()` -> `TcpServer::onMessage(conn, msg)`
 
 ---
 
 ## 建议的阅读顺序（按“最短路径”复习）
 
-1. `27/Epoll.cpp`：看 `ev.data.ptr = ch`、`epoll_ctl`、`epoll_wait` 如���把事件还原成 `Channel*`
+1. `27/Epoll.cpp`：看 `ev.data.ptr = ch`、`epoll_ctl`、`epoll_wait` 如何把事件还原成 `Channel*`
 2. `27/EventLoop.cpp`：看 `run()` 如何遍历 active channels 并调用 `handleEvent()`
 3. `27/Channel.cpp`：看 `enableReading/enableWritting` 如何触发 `updateChannel()`
 4. `27/Connection.cpp`：看连接创建时如何 `enableReading()` 完成注册，以及读写回调如何触发
