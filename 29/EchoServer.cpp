@@ -25,7 +25,7 @@ void EchoServer::Start()
 }
 
 // 处理新客户端连接请求，在TcpServer类中回调此函数。
-void EchoServer::HandleNewConnection(Connection *conn)
+void EchoServer::HandleNewConnection(spConnection conn)
 {
     std::cout << "New Connection Come in." << std::endl;
     //printf("EchoServer::HandleNewConnection() thread is %ld.\n",syscall(SYS_gettid));
@@ -34,7 +34,7 @@ void EchoServer::HandleNewConnection(Connection *conn)
 }
 
 
-void EchoServer::HandleMessage(Connection *conn, std::string& msg)
+void EchoServer::HandleMessage(spConnection conn, std::string& msg)
 {
    // printf("EchoServer::HandleMessage() thread is %ld.\n", syscall(SYS_gettid));
     //经过若干步的计算，得出outputbuffer
@@ -43,7 +43,7 @@ void EchoServer::HandleMessage(Connection *conn, std::string& msg)
     threadpool_.addTask("EchoServer::OnMessage", std::bind(&EchoServer::OnMessage, this, conn, msg));
 }
 
-void EchoServer::OnMessage(Connection *conn, std::string msg)
+void EchoServer::OnMessage(spConnection conn, std::string msg)
 {
     msg = "reply:" + msg;
     sleep(2);
@@ -51,21 +51,21 @@ void EchoServer::OnMessage(Connection *conn, std::string msg)
     conn->send(msg.data(), msg.size());
 }
 
-void EchoServer::HandleClose(Connection*)
+void EchoServer::HandleClose(spConnection)
 {
     std::cout << "EchoServer conn closed." << std::endl;
 
     // 根据业务的需求，在这里可以增加其它的代码。
 }
 
-void EchoServer::HandleError(Connection*)
+void EchoServer::HandleError(spConnection)
 {
     std::cout << "EchoServer conn error." << std::endl;
 
     // 根据业务的需求，在这里可以增加其它的代码。
 }
 
-void EchoServer::HandleSendComplete(Connection*)
+void EchoServer::HandleSendComplete(spConnection)
 {
     std::cout << "Message send complete." << std::endl;
 

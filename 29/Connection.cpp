@@ -42,32 +42,32 @@ void Connection::errorCallback()
 {
     // printf("client(eventfd=%d) error.\n",fd());
     // close(fd());            // 关闭客户端的fd。
-    errorCallback_(this);
+    errorCallback_(shared_from_this());
 }
 
 void Connection::closeCallback()
 {
     // std::cout << "client(eventfd= " << fd() <<") disconnected.\n";
     // close(fd());
-    closeCallback_(this);
+    closeCallback_(shared_from_this());
 }
 
-void Connection::setCloseCallback(std::function<void(Connection*)> fn)
+void Connection::setCloseCallback(std::function<void(spConnection)> fn)
 {
     closeCallback_ = fn;
 }
 
-void Connection::setErrorCallback(std::function<void(Connection*)> fn)
+void Connection::setErrorCallback(std::function<void(spConnection)> fn)
 {
     errorCallback_ = fn;
 }
 
-void Connection::setonMessageCallback(std::function<void(Connection*, std::string&)> fn)
+void Connection::setonMessageCallback(std::function<void(spConnection, std::string&)> fn)
 {
     onMessageCallback_ = fn;
 }
 
-void Connection::setsendCompleteCallback(std::function<void(Connection*)> fn)
+void Connection::setsendCompleteCallback(std::function<void(spConnection)> fn)
 {
     sendCompleteCallback_ = fn;
 }
@@ -87,7 +87,7 @@ void Connection::onMessage(){
                 ///////////////////////////////////////////////////////
                 //printf("message (eventfd=%d):%s\n", fd(), message.c_str());
                 
-                onMessageCallback_(this, message);
+                onMessageCallback_(shared_from_this(), message);
             }
             break;
         }
@@ -123,6 +123,6 @@ void Connection::writeCallback()
     //如果用户定义的缓冲区没有数据了，就注销写事件的关注
     if(outputbuffer_.size() == 0) {
         clientChannel_->disableWritting();
-        sendCompleteCallback_(this);
+        sendCompleteCallback_(shared_from_this());
     }
 }
