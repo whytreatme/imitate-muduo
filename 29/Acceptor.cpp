@@ -1,4 +1,5 @@
 #include "Acceptor.h"
+#include "Logger.h"
 
 
 
@@ -33,6 +34,7 @@ void Acceptor::newConnection(){
     //printf ("accept client(fd=%d,ip=%s,port=%d) ok.\n",clientsock->fd(),clientaddr.ip(),clientaddr.port());
  
     //Connection* conn = new Connection(loop_, clientsock);
+    LOG("Acceptor::newConnection - Accepted new client fd=%d, ip=%s, port=%d", clientsock->fd(), clientaddr.ip(), clientaddr.port());
     newConnectioncb_(clientsock);
 }
 

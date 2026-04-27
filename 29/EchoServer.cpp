@@ -1,6 +1,7 @@
 #include "EchoServer.h"
 #include <unistd.h>
 #include <sys/syscall.h>
+#include "Logger.h"
 
 
 EchoServer::EchoServer(const std::string &ip, const uint16_t port, int subnums_threads, int trnumsthreads)
@@ -27,7 +28,8 @@ void EchoServer::Start()
 // 处理新客户端连接请求，在TcpServer类中回调此函数。
 void EchoServer::HandleNewConnection(spConnection conn)
 {
-    std::cout << "New Connection Come in." << std::endl;
+    LOG("EchoServer::HandleNewConnection - New client connected, fd=%d.", conn->fd());
+    // std::cout << "New Connection Come in." << std::endl;
     //printf("EchoServer::HandleNewConnection() thread is %ld.\n",syscall(SYS_gettid));
 
     // 根据业务的需求，在这里可以增加其它的代码。
@@ -40,20 +42,25 @@ void EchoServer::HandleMessage(spConnection conn, std::string& msg)
     //经过若干步的计算，得出outputbuffer
    // msg = "reply:" + msg;
    // conn->send(msg.data(), msg.size());
-    threadpool_.addTask("EchoServer::OnMessage", std::bind(&EchoServer::OnMessage, this, conn, msg));
+   //printf("我现在在EchoServer::HandleMessage里！\n");
+   LOG("EchoServer::HandleMessage(fd=%d) - Received message. Adding OnMessage task to worker thread pool.", conn->fd()); 
+   threadpool_.addTask("EchoServer::OnMessage", std::bind(&EchoServer::OnMessage, this, conn, msg));
 }
 
 void EchoServer::OnMessage(spConnection conn, std::string msg)
 {
+    LOG("EchoServer::OnMessage(fd=%d) - Worker thread is now processing the message.", conn->fd());
     msg = "reply:" + msg;
     sleep(2);
-    printf("处理完业务之后，将使用Connection对象。\n");
+    //printf("处理完业务之后，将使用Connection对象。\n");
+    LOG("EchoServer::OnMessage(fd=%d) - Work complete. Sending reply back.", conn->fd());
     conn->send(msg.data(), msg.size());
 }
 
-void EchoServer::HandleClose(spConnection)
+void EchoServer::HandleClose(spConnection conn)
 {
-    std::cout << "EchoServer conn closed." << std::endl;
+    LOG("EchoServer::HandleClose - Client disconnected, fd=%d.", conn->fd());
+    //std::cout << "EchoServer conn closed." << std::endl;
 
     // 根据业务的需求，在这里可以增加其它的代码。
 }

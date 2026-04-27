@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 
     printf("connect ok.\n");
     // printf("开始时间：%d",time(0));
-
+    
     for (int ii=0;ii<5;ii++)
     {
         // 从命令行输入内容。
@@ -53,8 +53,7 @@ int main(int argc, char *argv[])
         send(sockfd,tmpbuf, len + 4, 0);       // 把命令行输入的内容发送给服务端。
         
     }
-    sleep(1);
-    return 0;
+    printf("现在开始接受回复内容\n");
     for(int ii =0;ii<5;ii++)
     {
         uint32_t len, nlen;
@@ -64,7 +63,8 @@ int main(int argc, char *argv[])
         recv(sockfd, buf, len, 0);     
         printf("recv:%s\n",buf);
     }
-
+    sleep(1);
+    return 0;
     // printf("结束时间：%d",time(0));
-    sleep(100);
+   
 } 

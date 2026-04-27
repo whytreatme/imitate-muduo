@@ -12,7 +12,7 @@
 
 Channel::Channel(int fd, EventLoop *loop) : fd_(fd), loop_(loop)
 {
-
+    //printf("我现在在Channel的构造函数里！\n");
 }  
 
 int Channel::fd(){
@@ -76,6 +76,7 @@ void Channel::handleEvent(){
         closeCallback_();
     }
     else if(revents_ & (EPOLLIN | EPOLLPRI)){
+        //printf("我现在在Channel::handleEvent里！\n");
         readCallback_();
     } 
      else if (revents_ & EPOLLOUT)                  // 有数据需要写，暂时没有代码，以后再说。
