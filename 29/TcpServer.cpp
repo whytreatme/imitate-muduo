@@ -64,6 +64,8 @@ void TcpServer::newConnection(Socket *clientsock)
         LOG("TcpServer::newConnection - Invoking application-level new connection callback for fd=%d", conn->fd());
         newConnectionCallback_(conn);
     }
+
+    conn->ConnectEstablished();
 }
 
 void TcpServer::errorConnection(spConnection conn)

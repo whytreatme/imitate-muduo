@@ -39,4 +39,6 @@ public:
     void setCloseCallback(std::function<void(spConnection)> fn);
     void setonMessageCallback(std::function<void(spConnection, std::string&)> fn);
     void setsendCompleteCallback(std::function<void(spConnection)> fn);
+
+    void ConnectEstablished();
 };

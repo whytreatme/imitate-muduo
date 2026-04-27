@@ -16,7 +16,7 @@ Connection::Connection(EventLoop *loop, Socket *clientsock) : loop_(loop), clien
     clientChannel_->setWritecallback(std::bind(&Connection::writeCallback, this));
     //clientChannel_->setET();
     LOG("Connection::Ctor(fd=%d) - ENABLING READING. The race condition starts NOW!", clientsock_->fd());
-    clientChannel_->enableReading();
+    
 }
 
 Connection::~Connection()
@@ -138,4 +138,10 @@ void Connection::writeCallback()
         clientChannel_->disableWritting();
         sendCompleteCallback_(shared_from_this());
     }
+}
+
+void Connection::ConnectEstablished()
+{
+    LOG("Connection::connectEstablished(fd=%d) - Connection is fully set up. ENABLING READING now.", fd());
+    clientChannel_->enableReading();
 }
