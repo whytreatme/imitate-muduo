@@ -30,6 +30,8 @@ public:
     void disableReading();                 //注销读事件
     void enableWritting();                 //注册写事件
     void disableWritting();                //注销写事件
+    void disableall();                     //取消所有事件的关注
+    void remove();                         //移除Channel
     void handleEvent();
     //void newConnection(Socket *servsock);
    // void onMessage();

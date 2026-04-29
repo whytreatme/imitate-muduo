@@ -5,7 +5,8 @@
 
 
 
-Connection::Connection(EventLoop *loop, Socket *clientsock) : loop_(loop), clientsock_(clientsock)
+Connection::Connection(EventLoop *loop, Socket *clientsock) 
+          : loop_(loop), clientsock_(clientsock), isDisconnect(false)
 {
     LOG("Connection::Ctor(fd=%d) - Creating Connection object.", clientsock_->fd());
     //printf("现在调用Connection的构造函数！\n");
@@ -48,6 +49,8 @@ void Connection::errorCallback()
     // printf("client(eventfd=%d) error.\n",fd());
     // close(fd());            // 关闭客户端的fd。
     LOG("Connection::errorCallback(fd=%d) - Channel reports an error. Invoking server callback.", fd());
+    isDisconnect = true;
+    clientChannel_->remove();
     errorCallback_(shared_from_this());
 }
 
@@ -56,6 +59,8 @@ void Connection::closeCallback()
     LOG("Connection::closeCallback(fd=%d) - Channel reports connection closed. Invoking server callback.", fd());
     // std::cout << "client(eventfd= " << fd() <<") disconnected.\n";
     // close(fd());
+    isDisconnect = true;
+    clientChannel_->remove();
     closeCallback_(shared_from_this());
 }
 
@@ -109,12 +114,29 @@ void Connection::onMessage(){
             closeCallback();
             break;
         }
-        else if((nread < 0) && (errno == EINTR)) continue;
         else{
-            LOG("Connection::onMessage(fd=%d) - recv error: %s", fd(), strerror(errno));
+           // LOG("Connection::onMessage(fd=%d) - recv error: %s", fd(), strerror(errno));
             //printf("recv(eventfd=%d):%s\n",fd(),buffer);
             //send(fd(),buffer,strlen(buffer),0);
-            inputbuffer_.append(buffer, nread);
+            if((nread < 0) && (errno == EINTR)) continue;
+            else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                // 数据已全部读取完毕，开始处理 inputbuffer_ 中的业务
+                while(true){
+                    std::string message;
+                    inputbuffer_.getText(message);
+                    if(message.size() == 0) break;
+                    
+                    onMessageCallback_(shared_from_this(), message);
+                }
+                break;
+            }
+            else {
+                // ！！！ 其他所有未知的负数错误 (如 ECONNRESET) ！！！
+                // 视为客户端异常断开，绝对不能当作长度去 append！
+                LOG("Connection::onMessage(fd=%d) - recv error, errno=%d", fd(), errno);
+                errorCallback(); // <--- 调用错误回调，触发清理流程
+                break;
+            }
         }
     }
 }
@@ -122,17 +144,26 @@ void Connection::onMessage(){
 //使用发送缓冲区发送数据
 void Connection::send(const char *data, size_t size)
 {
-    LOG("Connection::send(fd=%d) - Appending %zu bytes to output buffer and enabling writing.", fd(), size);
+    if(isDisconnect){
+        LOG("Connection::send(fd=%d) - Connection is already disconnected, send ignored.", fd());
+        printf("连接已经关闭，业务层不能再发送报文！\n");
+        return;
+    }
+
+    {
+    std::lock_guard<std::mutex> bufferlock(mutex_);
     outputbuffer_.appendWithhead(data, size);       //把数据读入缓冲区
+    }
     clientChannel_->enableWritting();
 }
 
 //写事件到达写入缓冲区
 void Connection::writeCallback()
 {
+    std::lock_guard<std::mutex> bufferlock(mutex_);
     size_t writen = ::send(fd(), outputbuffer_.data(), outputbuffer_.size(), 0);
     if(writen > 0) outputbuffer_.erase(0, writen);
-
+    
     //如果用户定义的缓冲区没有数据了，就注销写事件的关注
     if(outputbuffer_.size() == 0) {
         clientChannel_->disableWritting();
@@ -144,4 +175,9 @@ void Connection::ConnectEstablished()
 {
     LOG("Connection::connectEstablished(fd=%d) - Connection is fully set up. ENABLING READING now.", fd());
     clientChannel_->enableReading();
+}
+
+bool Connection::isConnect() const
+{
+    return !isDisconnect;
 }

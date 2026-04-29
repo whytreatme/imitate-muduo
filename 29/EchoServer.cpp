@@ -49,6 +49,10 @@ void EchoServer::HandleMessage(spConnection conn, std::string& msg)
 
 void EchoServer::OnMessage(spConnection conn, std::string msg)
 {
+    if(!conn->isConnect()){
+        LOG("EchoServer::OnMessage - 发现无效任务，直接丢弃，释放工作线程！");
+        return; 
+    }
     LOG("EchoServer::OnMessage(fd=%d) - Worker thread is now processing the message.", conn->fd());
     msg = "reply:" + msg;
     sleep(2);

@@ -12,6 +12,7 @@ public:
     ~EventLoop();
     void run();
     void updateChannel(Channel *ch);
+    void removeChannel(Channel *ch);
 
     void setepollTimeoutCallback(std::function<void(EventLoop*)> fn);
 };

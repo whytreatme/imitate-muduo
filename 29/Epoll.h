@@ -15,6 +15,7 @@ public:
 
     //void addfd(int fd, uint32_t op);
     void updateChannel(Channel* ch);
+    void removeChannel(Channel *ch);
     std::vector<Channel*> loop(int out = -1);
 
 };

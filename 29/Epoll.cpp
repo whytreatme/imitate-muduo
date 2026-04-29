@@ -32,6 +32,14 @@ void Epoll::updateChannel(Channel *ch){
     }
 }
 
+void Epoll::removeChannel(Channel *ch){
+    if(ch->inpoll()){
+        if(epoll_ctl(this->epollfd, EPOLL_CTL_DEL, ch->fd(), 0) == -1){
+            perror("epoll_ctl failed:");
+            exit(-1);
+        }
+    }
+}
 
 std::vector<Channel*> Epoll::loop(int timeout){
     std::vector<Channel*> channels;

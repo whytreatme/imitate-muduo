@@ -4,6 +4,8 @@
 #include "Channel.h"
 #include <iostream>
 #include <memory>
+#include <atomic>
+#include <mutex>
 #include "Buffer.h"
 
 class Connection;
@@ -14,8 +16,12 @@ private:
     EventLoop *loop_;
     Socket *clientsock_;
     Channel *clientChannel_;
-    Buffer inputbuffer_;        //增加接受缓冲区
-    Buffer outputbuffer_;        //发送接受缓冲区
+    Buffer inputbuffer_;             //增加接受缓冲区
+    Buffer outputbuffer_;            //发送接受缓冲区
+    std::atomic_bool isDisconnect;   //同步机制维护线程安全的发送方法
+
+    std::mutex mutex_;
+
     //回调函数区
     std::function<void(spConnection)> closeCallback_;
     std::function<void(spConnection)> errorCallback_;
@@ -41,4 +47,5 @@ public:
     void setsendCompleteCallback(std::function<void(spConnection)> fn);
 
     void ConnectEstablished();
+    bool isConnect () const;
 };

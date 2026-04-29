@@ -43,6 +43,20 @@ uint32_t Channel::revents(){
     return this->revents_;
 }
 
+//取消所有事件的关注
+void Channel::disableall()
+{
+    this->events_ = 0;
+} 
+
+//移除Channel
+void Channel::remove()
+{
+    printf("remove Channel !\n");
+    disableall();
+    loop_->removeChannel(this);
+}
+
 Channel::~Channel(){}
 
 void Channel::enableReading(){
