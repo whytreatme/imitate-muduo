@@ -3,14 +3,14 @@
 
 
 
-EventLoop::EventLoop()  : ep_()
+EventLoop::EventLoop()  : ep_(new Epoll)
 {
 
 }
 
 EventLoop::~EventLoop()
 {
-    //delete ep_;
+    delete ep_;
 }
 
 
@@ -19,7 +19,7 @@ void EventLoop::run()
     //printf("EventLoop::run() thread is %ld.\n", syscall(SYS_gettid));
     while(true){
         
-        std::vector<Channel*> channels = ep_.loop(10*1000);
+        std::vector<Channel*> channels = ep_->loop(10*1000);
         
         if(channels.size() == 0) {
             epollTimeoutCallback_(this);
@@ -36,12 +36,12 @@ void EventLoop::run()
 
 void EventLoop::updateChannel(Channel *ch)
 {
-    ep_.updateChannel(ch);
+    ep_->updateChannel(ch);
 }
 
 void EventLoop::removeChannel(Channel *ch)
 {
-    ep_.removeChannel(ch);
+    ep_->removeChannel(ch);
 }
 
 void EventLoop::setepollTimeoutCallback(std::function<void(EventLoop*)> fn)

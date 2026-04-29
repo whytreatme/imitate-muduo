@@ -15,7 +15,7 @@ Connection::Connection(EventLoop *loop, Socket *clientsock)
     clientChannel_->setClosecallback(std::bind(&Connection::closeCallback, this));
     clientChannel_->setErrorcallback(std::bind(&Connection::errorCallback, this));
     clientChannel_->setWritecallback(std::bind(&Connection::writeCallback, this));
-    //clientChannel_->setET();
+    clientChannel_->setET();
     LOG("Connection::Ctor(fd=%d) - ENABLING READING. The race condition starts NOW!", clientsock_->fd());
     
 }
@@ -92,19 +92,29 @@ void Connection::onMessage(){
         memset(buffer, 0, sizeof(buffer));
         ssize_t nread = recv(fd(), buffer, sizeof(buffer) ,0);
         //全部数据已经发送完毕
-        if((nread < 0) && ((errno == EAGAIN) ||(errno == EWOULDBLOCK))){ //数据已传输完成
-            LOG("Connection::onMessage(fd=%d) - All data read from socket. Processing buffer.", fd());
-            while(true){
-                
-                std::string message;
-                inputbuffer_.getText(message);
-                if(message.size() == 0) break;
-                ///////////////////////////////////////////////////////
-                //printf("message (eventfd=%d):%s\n", fd(), message.c_str());
-                LOG("Connection::onMessage(fd=%d) - Extracted message, size=%zu. About to invoke onMessageCallback_.", fd(), message.length());
-                onMessageCallback_(shared_from_this(), message);
+        if(nread < 0) {
+            if((errno == EAGAIN) ||(errno == EWOULDBLOCK)){ //数据已传输完成
+                LOG("Connection::onMessage(fd=%d) - All data read from socket. Processing buffer.", fd());
+                while(true){
+                    
+                    std::string message;
+                    inputbuffer_.getText(message);
+                    if(message.size() == 0) break;
+                    ///////////////////////////////////////////////////////
+                    //printf("message (eventfd=%d):%s\n", fd(), message.c_str());
+                    LOG("Connection::onMessage(fd=%d) - Extracted message, size=%zu. About to invoke onMessageCallback_.", fd(), message.length());
+                    onMessageCallback_(shared_from_this(), message);
+                }
+                break;
             }
-            break;
+            if(errno == EINTR) continue;
+            else {
+                // ！！！ 其他所有未知的负数错误 (如 ECONNRESET) ！！！
+                // 视为客户端异常断开，绝对不能当作长度去 append！
+                LOG("Connection::onMessage(fd=%d) - recv error, errno=%d", fd(), errno);
+                errorCallback(); // <--- 调用错误回调，触发清理流程
+                break;
+            }
         }
 
         else if(nread == 0){
@@ -115,28 +125,7 @@ void Connection::onMessage(){
             break;
         }
         else{
-           // LOG("Connection::onMessage(fd=%d) - recv error: %s", fd(), strerror(errno));
-            //printf("recv(eventfd=%d):%s\n",fd(),buffer);
-            //send(fd(),buffer,strlen(buffer),0);
-            if((nread < 0) && (errno == EINTR)) continue;
-            else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-                // 数据已全部读取完毕，开始处理 inputbuffer_ 中的业务
-                while(true){
-                    std::string message;
-                    inputbuffer_.getText(message);
-                    if(message.size() == 0) break;
-                    
-                    onMessageCallback_(shared_from_this(), message);
-                }
-                break;
-            }
-            else {
-                // ！！！ 其他所有未知的负数错误 (如 ECONNRESET) ！！！
-                // 视为客户端异常断开，绝对不能当作长度去 append！
-                LOG("Connection::onMessage(fd=%d) - recv error, errno=%d", fd(), errno);
-                errorCallback(); // <--- 调用错误回调，触发清理流程
-                break;
-            }
+          inputbuffer_.append(buffer, nread);
         }
     }
 }
