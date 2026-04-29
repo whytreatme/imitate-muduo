@@ -4,7 +4,7 @@
 
 class EventLoop{
 private:
-    Epoll *ep_;
+    Epoll ep_;
 
     std::function<void(EventLoop*)> epollTimeoutCallback_;
 public:

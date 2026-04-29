@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
         send(sockfd,tmpbuf, len + 4, 0);       // 把命令行输入的内容发送给服务端。
         
     }
+    
     sleep(2);
     return 0;
     printf("现在开始接受回复内容\n");
