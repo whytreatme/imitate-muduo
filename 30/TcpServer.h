@@ -21,12 +21,12 @@ TcpServer负责启动事件循环
 */
 class TcpServer{
 private:
-    EventLoop *mainloop_;               //主线程运行主事件循环
-    std::vector<EventLoop*> subloops_;   //线程池运行从事件循环
+    EventLoop mainloop_;               //主线程运行主事件循环
+    std::vector<std::unique_ptr<EventLoop>> subloops_;   //线程池运行从事件循环
     thpool threadpool_;                //建立线程池
     int nums_threads;                   //线程池的线程数量
 
-    Acceptor *acceptor_;
+    Acceptor acceptor_;
     std::map<int, spConnection>conns_;
     //给echoserver使用的回调函数接口
     std::function<void (spConnection)> newConnectionCallback_;
@@ -41,7 +41,7 @@ public:
     ~TcpServer();
     void start();
 
-    void newConnection(Socket *);
+    void newConnection(std::unique_ptr<Socket>);
     void onMessage(spConnection , std::string&);
     void closeConnection(spConnection);
     void errorConnection(spConnection);

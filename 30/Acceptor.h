@@ -3,6 +3,7 @@
 #include "Socket.h"
 #include "Channel.h"
 #include <string>
+#include <memory>
 
 /*
 Acceptor类的职责
@@ -13,14 +14,14 @@ Acceptor类负责将新连接通过回调函数传递给上层调用者
 */
 class Acceptor{
 private:
-    EventLoop *loop_;
+    EventLoop &loop_;
     Socket *servsock_;
     Channel *acceptChannel_;
-    std::function<void(Socket*)> newConnectioncb_;
+    std::function<void(std::unique_ptr<Socket>)> newConnectioncb_;
 public:
-    Acceptor(EventLoop *loop, const std::string &ip, uint16_t port);
+    Acceptor(EventLoop &loop, const std::string &ip, uint16_t port);
     ~Acceptor();
 
     void newConnection();
-    void setnewConnection( std::function<void(Socket*)> fn);
+    void setnewConnection( std::function<void(std::unique_ptr<Socket>)> fn);
 };

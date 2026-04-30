@@ -3,7 +3,7 @@
 
 
 
-Acceptor::Acceptor(EventLoop *loop, const std::string &ip, uint16_t port) : loop_(loop)
+Acceptor::Acceptor(EventLoop &loop, const std::string &ip, uint16_t port) : loop_(loop)
 {
     servsock_ = new Socket(create_non_block());
    
@@ -28,17 +28,17 @@ Acceptor::~Acceptor()
 //#include "Connection.h"
 void Acceptor::newConnection(){
     InetAddress clientaddr;
-    Socket *clientsock = new Socket(servsock_->accept(clientaddr));
+    std::unique_ptr<Socket> clientsock(new Socket(servsock_->accept(clientaddr)));
     clientsock->settcpnodelay(true);
     clientsock->setIpPort(clientaddr.ip(), clientaddr.port());
     //printf ("accept client(fd=%d,ip=%s,port=%d) ok.\n",clientsock->fd(),clientaddr.ip(),clientaddr.port());
  
     //Connection* conn = new Connection(loop_, clientsock);
     LOG("Acceptor::newConnection - Accepted new client fd=%d, ip=%s, port=%d", clientsock->fd(), clientaddr.ip(), clientaddr.port());
-    newConnectioncb_(clientsock);
+    newConnectioncb_(std::move(clientsock));
 }
 
-void Acceptor::setnewConnection( std::function<void(Socket*)> fn)
+void Acceptor::setnewConnection(std::function<void(std::unique_ptr<Socket>)> fn)
 {
     newConnectioncb_ = fn;
 }

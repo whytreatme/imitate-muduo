@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <functional>
 #include "Socket.h"
+
 class EventLoop;
 
 class Channel{
@@ -10,14 +11,14 @@ private:
     uint32_t events_ = 0;
     uint32_t revents_ = 0;
     bool inepoll = false;
-    EventLoop *loop_ = nullptr; 
+    EventLoop &loop_ ; 
     std::function<void()> readCallback_;
     std::function<void()> errorCallback_;
     std::function<void()> closeCallback_;
     std::function<void()> writeCallback_;
 
 public:
-    Channel(int fd, EventLoop *ep);
+    Channel(int fd, EventLoop &ep);
     ~Channel();
     
     int fd();

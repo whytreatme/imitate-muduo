@@ -5,12 +5,13 @@
 
 
 
-Connection::Connection(EventLoop *loop, Socket *clientsock) 
-          : loop_(loop), clientsock_(clientsock), isDisconnect(false)
+Connection::Connection(EventLoop &loop, std::unique_ptr<Socket> clientsock) 
+          : loop_(loop), clientsock_(std::move(clientsock)), isDisconnect(false),
+            clientChannel_(new Channel(clientsock_->fd(), loop_))
 {
     LOG("Connection::Ctor(fd=%d) - Creating Connection object.", clientsock_->fd());
     //printf("现在调用Connection的构造函数！\n");
-    clientChannel_ = new Channel(clientsock_->fd(), loop_);
+    
     clientChannel_->setReadcallback(std::bind(&Connection::onMessage, this));
     clientChannel_->setClosecallback(std::bind(&Connection::closeCallback, this));
     clientChannel_->setErrorcallback(std::bind(&Connection::errorCallback, this));
@@ -22,9 +23,9 @@ Connection::Connection(EventLoop *loop, Socket *clientsock)
 
 Connection::~Connection()
 {
-    LOG("Connection::Dtor(fd=%d) - Destroying Connection object.", fd());
-    delete clientChannel_;
-    delete clientsock_;
+    //LOG("Connection::Dtor(fd=%d) - Destroying Connection object.", fd());
+    //delete clientChannel_;
+    //delete clientsock_;
     printf("Connection对象已析构\n");
 }
 
@@ -51,7 +52,8 @@ void Connection::errorCallback()
     LOG("Connection::errorCallback(fd=%d) - Channel reports an error. Invoking server callback.", fd());
     isDisconnect = true;
     clientChannel_->remove();
-    errorCallback_(shared_from_this());
+    auto self = shared_from_this();
+    errorCallback_(self);
 }
 
 void Connection::closeCallback()
@@ -61,7 +63,8 @@ void Connection::closeCallback()
     // close(fd());
     isDisconnect = true;
     clientChannel_->remove();
-    closeCallback_(shared_from_this());
+    auto self = shared_from_this();
+    closeCallback_(self);
 }
 
 void Connection::setCloseCallback(std::function<void(spConnection)> fn)

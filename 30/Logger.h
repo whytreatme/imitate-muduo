@@ -6,7 +6,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#define ENABLE_DEBUG_LOG 1   //设置日志的开关
+#define ENABLE_DEBUG_LOG 0   //设置日志的开关
 
 // A simple logging macro that includes a timestamp and thread ID.
 #if ENABLE_DEBUG_LOG

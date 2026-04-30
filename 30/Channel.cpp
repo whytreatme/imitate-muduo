@@ -10,7 +10,7 @@
 
 
 
-Channel::Channel(int fd, EventLoop *loop) : fd_(fd), loop_(loop)
+Channel::Channel(int fd, EventLoop &loop) : fd_(fd), loop_(loop)
 {
     //printf("我现在在Channel的构造函数里！\n");
 }  
@@ -54,7 +54,7 @@ void Channel::remove()
 {
     printf("remove Channel !\n");
     disableall();
-    loop_->removeChannel(this);
+    loop_.removeChannel(this);
 }
 
 Channel::~Channel(){}
@@ -62,25 +62,25 @@ Channel::~Channel(){}
 void Channel::enableReading(){
     this->events_ |= EPOLLIN;
     // this->ep_->updateChannel(this);
-    loop_->updateChannel(this);
+    loop_.updateChannel(this);
 }
 
 void Channel::disableReading()
 {
     this->events_ &= ~EPOLLIN;
-    loop_->updateChannel(this);
+    loop_.updateChannel(this);
 }
 
 void Channel::enableWritting()
 {
     this->events_ |= EPOLLOUT;
-    loop_->updateChannel(this);
+    loop_.updateChannel(this);
 }
 
 void Channel::disableWritting()
 {
     this->events_ &= ~EPOLLOUT;
-    loop_->updateChannel(this);
+    loop_.updateChannel(this);
 }
 
 void Channel::handleEvent(){

@@ -7,51 +7,49 @@
 
 
 TcpServer::TcpServer(const std::string &ip, const uint16_t port, int numsthreads) 
-            : nums_threads(numsthreads), threadpool_(numsthreads, "IO")
+            : mainloop_(), nums_threads(numsthreads), threadpool_(numsthreads, "IO"),
+              acceptor_(mainloop_, ip, port)
 {
-   mainloop_ = new EventLoop; 
-   mainloop_->setepollTimeoutCallback(std::bind(&TcpServer::epollTimeout, this, std::placeholders::_1));  
-   
-   acceptor_ =  new Acceptor(mainloop_, ip, port);
-   acceptor_->setnewConnection(std::bind(&TcpServer::newConnection, this, std::placeholders::_1));
+   mainloop_.setepollTimeoutCallback(std::bind(&TcpServer::epollTimeout, this, std::placeholders::_1));  
+   acceptor_.setnewConnection(std::bind(&TcpServer::newConnection, this, std::placeholders::_1));
 
    //创建从事件循环
    for(int i = 0; i < nums_threads; i++)
    {
-        subloops_.push_back(new EventLoop);
+        subloops_.emplace_back(new EventLoop);
         subloops_[i]->setepollTimeoutCallback(std::bind(&TcpServer::epollTimeout, this, std::placeholders::_1));  
-        threadpool_.addTask(" EventLoop", std::bind(&EventLoop::run, subloops_[i]));
+        threadpool_.addTask(" EventLoop", std::bind(&EventLoop::run, subloops_[i].get()));
    }
 }
 
 TcpServer::~TcpServer()
 {
-    delete acceptor_;
-    delete mainloop_;
+    //delete acceptor_;
+    //delete mainloop_;
 
     // for(auto &aa : conns_)
     // {
     //     delete aa.second;
     // }  
 
-    for(auto &el : subloops_)
-    {
-        delete el;
-    }
+    // for(auto &el : subloops_)
+    // {
+    //     delete el;
+    // }
 }
 
 void TcpServer::start()
 {
-    mainloop_->run();
+    mainloop_.run();
 }
 
-void TcpServer::newConnection(Socket *clientsock)
+void TcpServer::newConnection(std::unique_ptr<Socket> clientsock)
 {
     LOG("TcpServer::newConnection - Handing new connection for fd=%d", clientsock->fd());
     //printf("接收到新的连接。\n");
     //Connection* conn = new Connection(mainloop_, clientsock);
     //把Connection分配给从事件循环
-    spConnection conn = std::make_shared<Connection>(subloops_[clientsock->fd() % nums_threads], clientsock);
+    spConnection conn = std::make_shared<Connection>(*subloops_[clientsock->fd() % nums_threads], std::move(clientsock));
     LOG("TcpServer::newConnection - Setting callbacks for fd=%d", conn->fd());
     conn->setCloseCallback(std::bind(&TcpServer::closeConnection, this, std::placeholders::_1));
     conn->setErrorCallback(std::bind(&TcpServer::errorConnection, this, std::placeholders::_1));
@@ -138,7 +136,7 @@ void TcpServer::setsendCompleteCallback(std::function<void (spConnection)> fn)
     sendComleteCallback_ = fn;
 }  
 
-void TcpServer::settimeOutCallback(std::function<void (EventLoop*)> fn)
+void TcpServer::settimeOutCallback(std::function<void(EventLoop*)> fn)
 {
     timeOutCallback_ = fn;
 }

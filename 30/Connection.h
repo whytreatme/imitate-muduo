@@ -8,14 +8,15 @@
 #include <mutex>
 #include "Buffer.h"
 
+
 class Connection;
 using spConnection = std::shared_ptr<Connection>;
 
 class Connection : public std::enable_shared_from_this<Connection>{
 private:
-    EventLoop *loop_;
-    Socket *clientsock_;
-    Channel *clientChannel_;
+    EventLoop &loop_;
+    std::unique_ptr<Socket> clientsock_;
+    std::unique_ptr<Channel> clientChannel_;
     Buffer inputbuffer_;             //增加接受缓冲区
     Buffer outputbuffer_;            //发送接受缓冲区
     std::atomic_bool isDisconnect;   //同步机制维护线程安全的发送方法
@@ -29,7 +30,7 @@ private:
     std::function<void(spConnection)> sendCompleteCallback_;
     
 public:
-    Connection(EventLoop *loop, Socket *);
+    Connection(EventLoop &loop, std::unique_ptr<Socket>);
     ~Connection();
 
     int fd() const;
