@@ -7,7 +7,7 @@
 
 
 TcpServer::TcpServer(const std::string &ip, const uint16_t port, int numsthreads) 
-            : mainloop_(), nums_threads(numsthreads), threadpool_(numsthreads, "IO"),
+            : mainloop_(), nums_threads(numsthreads), threadpool_(nums_threads, "IO"),
               acceptor_(mainloop_, ip, port)
 {
    mainloop_.setepollTimeoutCallback(std::bind(&TcpServer::epollTimeout, this, std::placeholders::_1));  

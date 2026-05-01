@@ -15,8 +15,8 @@ Acceptor类负责将新连接通过回调函数传递给上层调用者
 class Acceptor{
 private:
     EventLoop &loop_;
-    Socket *servsock_;
-    Channel *acceptChannel_;
+    Socket servsock_;
+    Channel acceptChannel_;
     std::function<void(std::unique_ptr<Socket>)> newConnectioncb_;
 public:
     Acceptor(EventLoop &loop, const std::string &ip, uint16_t port);

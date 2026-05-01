@@ -23,9 +23,9 @@ class TcpServer{
 private:
     EventLoop mainloop_;               //主线程运行主事件循环
     std::vector<std::unique_ptr<EventLoop>> subloops_;   //线程池运行从事件循环
+    int nums_threads;                   //线程池的线程数
     thpool threadpool_;                //建立线程池
-    int nums_threads;                   //线程池的线程数量
-
+    
     Acceptor acceptor_;
     std::map<int, spConnection>conns_;
     //给echoserver使用的回调函数接口

@@ -3,32 +3,30 @@
 
 
 
-Acceptor::Acceptor(EventLoop &loop, const std::string &ip, uint16_t port) : loop_(loop)
+Acceptor::Acceptor(EventLoop &loop, const std::string &ip, uint16_t port) : 
+          loop_(loop),  servsock_(create_non_block()), acceptChannel_(servsock_.fd(), loop_)
 {
-    servsock_ = new Socket(create_non_block());
-   
-    servsock_->setreuseaddr(true);
-    servsock_->setreuseport(true);
+    servsock_.setreuseaddr(true);
+    servsock_.setreuseport(true);
    
     InetAddress servaddr(ip, port);
-    servsock_->bind(servaddr);
-    servsock_->listen();
-   
-    acceptChannel_ = new Channel(servsock_->fd(), loop_);
-    acceptChannel_->setReadcallback(std::bind(&Acceptor::newConnection, this));
-    acceptChannel_->enableReading();
+    servsock_.bind(servaddr);
+    servsock_.listen();
+      
+    acceptChannel_.setReadcallback(std::bind(&Acceptor::newConnection, this));
+    acceptChannel_.enableReading();
 }
 
 Acceptor::~Acceptor()
 {
-    delete servsock_;
-    delete acceptChannel_;
+    //delete servsock_;
+    //delete acceptChannel_;
 }
 
 //#include "Connection.h"
 void Acceptor::newConnection(){
     InetAddress clientaddr;
-    std::unique_ptr<Socket> clientsock(new Socket(servsock_->accept(clientaddr)));
+    std::unique_ptr<Socket> clientsock(new Socket(servsock_.accept(clientaddr)));
     clientsock->settcpnodelay(true);
     clientsock->setIpPort(clientaddr.ip(), clientaddr.port());
     //printf ("accept client(fd=%d,ip=%s,port=%d) ok.\n",clientsock->fd(),clientaddr.ip(),clientaddr.port());
