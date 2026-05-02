@@ -15,7 +15,7 @@ int main(int argc, char *argv[]){
 
     
 
-    EchoServer echoserver(argv[1], atoi(argv[2]), 3);
+    EchoServer echoserver(argv[1], atoi(argv[2]), 3, 0);
     echoserver.Start();
    
 

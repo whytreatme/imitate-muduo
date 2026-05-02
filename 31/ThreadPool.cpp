@@ -50,6 +50,11 @@ void thpool::addTask(std::string name, std::function<void()> task)
     tCondition.notify_one();     //由条件变量通知阻塞的线程
 }  
 
+size_t thpool::size() const
+{
+    return threads.size();
+}
+
 thpool::~thpool()
 {
     stop_ = true;

@@ -38,13 +38,12 @@ void EchoServer::HandleNewConnection(spConnection conn)
 
 void EchoServer::HandleMessage(spConnection conn, std::string& msg)
 {
-   // printf("EchoServer::HandleMessage() thread is %ld.\n", syscall(SYS_gettid));
-    //经过若干步的计算，得出outputbuffer
-   // msg = "reply:" + msg;
-   // conn->send(msg.data(), msg.size());
-   //printf("我现在在EchoServer::HandleMessage里！\n");
    LOG("EchoServer::HandleMessage(fd=%d) - Received message. Adding OnMessage task to worker thread pool.", conn->fd()); 
-   threadpool_.addTask("EchoServer::OnMessage", std::bind(&EchoServer::OnMessage, this, conn, msg));
+   if(threadpool_.size() == 0){
+        OnMessage(conn, msg);
+   }
+   else
+        threadpool_.addTask("EchoServer::OnMessage", std::bind(&EchoServer::OnMessage, this, conn, msg));
 }
 
 void EchoServer::OnMessage(spConnection conn, std::string msg)
@@ -55,8 +54,6 @@ void EchoServer::OnMessage(spConnection conn, std::string msg)
     }
     LOG("EchoServer::OnMessage(fd=%d) - Worker thread is now processing the message.", conn->fd());
     msg = "reply:" + msg;
-    sleep(2);
-    //printf("处理完业务之后，将使用Connection对象。\n");
     LOG("EchoServer::OnMessage(fd=%d) - Work complete. Sending reply back.", conn->fd());
     conn->send(msg.data(), msg.size());
 }

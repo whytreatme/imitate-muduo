@@ -27,4 +27,5 @@ public:
     ~thpool();
     void addTask(std::function<void()> task);            //兼容旧接口，名字为"unamed"
     void addTask(std::string name, std::function<void()> task);
+    size_t size() const;
 };
