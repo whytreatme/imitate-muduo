@@ -53,13 +53,12 @@ void EchoServer::OnMessage(spConnection conn, std::string msg)
         LOG("EchoServer::OnMessage - 发现无效任务，直接丢弃，释放工作线程！");
         return; 
     }
-    printf("Thread(%ld) runs EchoServer::OnMessage", syscall(SYS_gettid));
     LOG("EchoServer::OnMessage(fd=%d) - Worker thread is now processing the message.", conn->fd());
     msg = "reply:" + msg;
    
     //printf("处理完业务之后，将使用Connection对象。\n");
     LOG("EchoServer::OnMessage(fd=%d) - Work complete. Sending reply back.", conn->fd());
-    conn->send(msg.data(), msg.size());
+    conn->send(msg.data());
 }
 
 void EchoServer::HandleClose(spConnection conn)

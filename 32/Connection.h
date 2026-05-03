@@ -39,7 +39,8 @@ public:
     void errorCallback();
     void closeCallback();
     void onMessage();
-    void send(const char *data, size_t size);
+    void send(const char *data);
+    void sendInLoop(std::shared_ptr<std::string>);
     void writeCallback();
 
     void setErrorCallback(std::function<void(spConnection)> fn);

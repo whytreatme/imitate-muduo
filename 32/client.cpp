@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     printf("connect ok.\n");
     // printf("开始时间：%d",time(0));
     
-    for (int ii=0;ii<1;ii++)
+    for (int ii=0;ii<5;ii++)
     {
         // 从命令行输入内容。
         memset(buf,0,sizeof(buf));
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     //sleep(2);
     //return 0;
     printf("现在开始接受回复内容\n");
-    for(int ii =0;ii<1;ii++)
+    for(int ii =0;ii<5;ii++)
     {
         uint32_t len, nlen;
         recv(sockfd, &nlen, 4, 0);

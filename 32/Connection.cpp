@@ -134,25 +134,35 @@ void Connection::onMessage(){
 }
 
 //使用发送缓冲区发送数据
-void Connection::send(const char *data, size_t size)
+void Connection::send(const char *data)
 {
     if(isDisconnect){
         LOG("Connection::send(fd=%d) - Connection is already disconnected, send ignored.", fd());
         printf("连接已经关闭，业务层不能再发送报文！\n");
         return;
     }
-
-    {
-    std::lock_guard<std::mutex> bufferlock(mutex_);
-    outputbuffer_.appendWithhead(data, size);       //把数据读入缓冲区
+    std::shared_ptr<std::string> message_(new std::string(data));
+    if(loop_.isinLoopThread()){
+        printf("当前在IO线程当中。\n");
+        sendInLoop(message_);
     }
+    else{
+        printf("当前不在IO线程当中！\n");
+        loop_.queueInLoop(std::bind(&Connection::sendInLoop, this, message_));
+    }
+    
+}
+
+//只允许IO线程操作内核态的缓冲区
+void Connection::sendInLoop(std::shared_ptr<std::string> message)
+{
+    outputbuffer_.appendWithhead(message->data(), message->size());       //把数据读入缓冲区
     clientChannel_->enableWritting();
 }
 
 //写事件到达写入缓冲区
 void Connection::writeCallback()
 {
-    std::lock_guard<std::mutex> bufferlock(mutex_);
     size_t writen = ::send(fd(), outputbuffer_.data(), outputbuffer_.size(), 0);
     if(writen > 0) outputbuffer_.erase(0, writen);
     
