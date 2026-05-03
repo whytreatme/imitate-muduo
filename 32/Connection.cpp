@@ -134,21 +134,21 @@ void Connection::onMessage(){
 }
 
 //使用发送缓冲区发送数据
-void Connection::send(const char *data)
+void Connection::send(const char *data, size_t size)
 {
     if(isDisconnect){
         LOG("Connection::send(fd=%d) - Connection is already disconnected, send ignored.", fd());
         printf("连接已经关闭，业务层不能再发送报文！\n");
         return;
     }
-    std::shared_ptr<std::string> message_(new std::string(data));
+    std::shared_ptr<std::string> message_(new std::string(data, size));
     if(loop_.isinLoopThread()){
         printf("当前在IO线程当中。\n");
         sendInLoop(message_);
     }
     else{
         printf("当前不在IO线程当中！\n");
-        loop_.queueInLoop(std::bind(&Connection::sendInLoop, this, message_));
+        loop_.queueInLoop(std::bind(&Connection::sendInLoop, shared_from_this(), message_));
     }
     
 }

@@ -1,5 +1,6 @@
 #include "EventLoop.h"
 #include "Channel.h"
+#include "errno.h"
 
 
 
@@ -16,13 +17,17 @@ EventLoop::EventLoop() :
 EventLoop::~EventLoop()
 {
     removeChannel(&wakeupChannel_);
+    ::close(wakeupfd_);
 }
 
 
 void EventLoop::run()
 {
     //printf("EventLoop::run() thread is %ld.\n", syscall(SYS_gettid));
-    threadid_ = syscall(SYS_gettid);
+    {
+        std::lock_guard<std::mutex> lock_(idmutex_);
+        threadid_ = syscall(SYS_gettid);
+    }
     while(true){
         
         std::vector<Channel*> channels = ep_.loop(10*1000);
@@ -58,6 +63,7 @@ void EventLoop::setepollTimeoutCallback(std::function<void(EventLoop*)> fn)
 //判断当前是否处于IO线程
 bool EventLoop::isinLoopThread()
 {
+    std::lock_guard<std::mutex> lock_(idmutex_);
     return  threadid_ == syscall(SYS_gettid);
 }
 
@@ -74,22 +80,32 @@ void EventLoop::queueInLoop(std::function<void()> fn)
 void EventLoop::wakeUp()
 {
     uint64_t val = 1;
-    write(wakeupfd_, &val, sizeof(val));
+    ssize_t n = write(wakeupfd_, &val, sizeof(val));
+    if(n < 0){
+        if(errno == EAGAIN || errno == EWOULDBLOCK) return;
+        if(errno == EINTR) return;
+    }
 }
 
 void EventLoop::handleWakeUp()
 {
     printf("Now Thread(%ld) runs EventLoop::handleWakeUp .\n", syscall(SYS_gettid));
     uint64_t val;
-    read(wakeupfd_, &val, sizeof(val));
+    ssize_t n = read(wakeupfd_, &val, sizeof(val));
+    if(n < 0){
+        if(errno == EAGAIN || errno == EWOULDBLOCK) return;
+        if(errno == EINTR) return;
+    }
 
-    std::function<void()> task;
+    std::queue<std::function<void()>> tasks;
     {
-        std::lock_guard<std::mutex> lock_(mutex_);
-        while(taskqueue_.size() > 0){
-            task = std::move(taskqueue_.front());
-            taskqueue_.pop();
-            task();
-        }
+        std::lock_guard<std::mutex> lock(mutex_);
+        tasks.swap(taskqueue_);
+    }
+
+    while (!tasks.empty()) {
+        auto task = std::move(tasks.front());
+        tasks.pop();
+        task();
     }
 }

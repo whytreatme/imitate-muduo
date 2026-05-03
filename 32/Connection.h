@@ -39,7 +39,7 @@ public:
     void errorCallback();
     void closeCallback();
     void onMessage();
-    void send(const char *data);
+    void send(const char *data, size_t size);
     void sendInLoop(std::shared_ptr<std::string>);
     void writeCallback();
 

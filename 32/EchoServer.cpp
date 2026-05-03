@@ -58,7 +58,7 @@ void EchoServer::OnMessage(spConnection conn, std::string msg)
    
     //printf("处理完业务之后，将使用Connection对象。\n");
     LOG("EchoServer::OnMessage(fd=%d) - Work complete. Sending reply back.", conn->fd());
-    conn->send(msg.data());
+    conn->send(msg.data(), msg.size());
 }
 
 void EchoServer::HandleClose(spConnection conn)

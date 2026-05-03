@@ -15,6 +15,7 @@ private:
     pid_t threadid_;                                    //循环所处的线程ID
     std::queue<std::function<void()>> taskqueue_;       //独属于IO线程的任务队列 
     std::mutex mutex_;                                  //用于保护队列被工作线程互斥访问的锁
+    std::mutex idmutex_;                                //用于保护threadid_
     int wakeupfd_;                                      //用于唤醒IO线程处理等待队列的fd
     Channel wakeupChannel_;                             //唤醒队列的Channel
 
