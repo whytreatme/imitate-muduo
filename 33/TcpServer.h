@@ -6,7 +6,9 @@
 #include "Acceptor.h"
 #include "Connection.h"
 #include <map>
+#include <unordered_map>
 #include "ThreadPool.h"
+#include <mutex>
 
 
 /*
@@ -21,13 +23,21 @@ TcpServer负责启动事件循环
 */
 class TcpServer{
 private:
+    int timerIntervalSec_;         //转发给EventLoop
+    int idleTimeoutSec_;           //转发给Connection
+
     EventLoop mainloop_;               //主线程运行主事件循环
     std::vector<std::unique_ptr<EventLoop>> subloops_;   //线程池运行从事件循环
     int nums_threads;                   //线程池的线程数
     thpool threadpool_;                //建立线程池
     
     Acceptor acceptor_;
-    std::map<int, spConnection>conns_;
+
+    
+
+    std::map<int, spConnection>conns_;                               //用于普通连接断开的共享表
+    std::unordered_map<EventLoop*, std::unordered_map<int, spConnection>> loopConns_;  //用于空闲连接断开的共享表
+    std::mutex mapMutex_;       //用于保护两张表的锁
     //给echoserver使用的回调函数接口
     std::function<void (spConnection)> newConnectionCallback_;
     std::function<void (spConnection, std::string&)> onMessageCallback_;
@@ -37,7 +47,7 @@ private:
     std::function<void (EventLoop*)> timeOutCallback_;
     
 public:
-    TcpServer(const std::string &ip, const uint16_t port, int numsthreads = 3);
+    TcpServer(const std::string &ip, const uint16_t port, int numsthreads = 3, int timerIntervalSec=60, int idleTimeoutSec=180);
     ~TcpServer();
     void start();
 
@@ -54,4 +64,6 @@ public:
     void seterrorCallback(std::function<void (spConnection)> fn);
     void setsendCompleteCallback(std::function<void (spConnection)> fn);
     void settimeOutCallback(std::function<void (EventLoop*)> fn);
+
+    
 };

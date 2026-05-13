@@ -87,28 +87,10 @@ int main(int argc, char *argv[]){
                     }
             }
             else{
-                /* 
-                EPOLLRDHUP (since Linux 2.6.17)
-              Stream socket peer closed connection, or shut down writing
-              half of connection.  (This flag is especially useful for
-              writing simple code to detect peer shutdown when using
-              edge-triggered monitoring.)
-              */
                 if(evs[i].events & EPOLLRDHUP){
                     cout << "1client(eventfd= " << evs[i].data.fd <<") disconnected.\n";
                     close(evs[i].data.fd);
                 }
-                /* 
-                EPOLLPRI
-                There is some exceptional condition on the file descriptor.
-              Possibilities include:
-
-              •  There is out-of-band data on a TCP socket (see tcp(7)).
-
-              •  A pseudoterminal master in packet mode has seen a state
-                 change on the slave (see ioctl_tty(2)).
-
-              •  A cgroup.events file has been modified (see cgroups(7))*/
                 else if(evs[i].events & (EPOLLIN | EPOLLPRI)){
                     char buffer[1024];
                 

@@ -4,11 +4,14 @@
 
 
 
-EventLoop::EventLoop() : 
+EventLoop::EventLoop(int timerIntervalSec) : 
+                        timerIntervalSec_(timerIntervalSec),
+                        timeoutClock_(*this, timerIntervalSec_),
                         wakeupfd_(eventfd(0, EFD_NONBLOCK)), 
                         wakeupChannel_(wakeupfd_, *this),
-                        threadid_(-1)
+                        threadid_(-1) 
 {
+    timeoutClock_.setTickCallback(std::bind(&EventLoop::handleTimeout, this));
     wakeupChannel_.setReadcallback(std::bind(&EventLoop::handleWakeUp, this));
     updateChannel(&wakeupChannel_);
     wakeupChannel_.enableReading();
@@ -32,11 +35,11 @@ void EventLoop::run()
         
         std::vector<Channel*> channels = ep_.loop(10*1000);
         
-        if(channels.size() == 0) {
-            epollTimeoutCallback_(this);
+        //if(channels.size() == 0) {
+            //epollTimeoutCallback_(this);
             //break;
-        }
-        else{
+        //}
+        {
             for(auto& ch : channels){
                 ch->handleEvent();  
             }
@@ -55,10 +58,10 @@ void EventLoop::removeChannel(Channel *ch)
     ep_.removeChannel(ch);
 }
 
-void EventLoop::setepollTimeoutCallback(std::function<void(EventLoop*)> fn)
-{
-    epollTimeoutCallback_ = fn;
-}
+// void EventLoop::setepollTimeoutCallback(std::function<void(EventLoop*)> fn)
+// {
+//     epollTimeoutCallback_ = fn;
+// }
 
 //判断当前是否处于IO线程
 bool EventLoop::isinLoopThread()
@@ -109,3 +112,14 @@ void EventLoop::handleWakeUp()
         task();
     }
 }
+
+void EventLoop::setTimeoutCallback(std::function<void(EventLoop*)> fn)
+{
+    timeoutCallback_ = fn;
+}
+
+void EventLoop::handleTimeout()
+{
+    if(timeoutCallback_)timeoutCallback_(this);
+}
+

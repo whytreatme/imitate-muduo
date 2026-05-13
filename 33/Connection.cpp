@@ -5,13 +5,14 @@
 
 
 
-Connection::Connection(EventLoop &loop, std::unique_ptr<Socket> clientsock) 
+Connection::Connection(EventLoop &loop, std::unique_ptr<Socket> clientsock, int idleTimeoutSec) 
           : loop_(loop), clientsock_(std::move(clientsock)), isDisconnect(false),
-            clientChannel_(new Channel(clientsock_->fd(), loop_))
+            clientChannel_(new Channel(clientsock_->fd(), loop_)),
+            idleTimeoutSec_(idleTimeoutSec)
 {
     LOG("Connection::Ctor(fd=%d) - Creating Connection object.", clientsock_->fd());
     //printf("现在调用Connection的构造函数！\n");
-    
+    lastActive_ = std::chrono::steady_clock::now();
     clientChannel_->setReadcallback(std::bind(&Connection::onMessage, this));
     clientChannel_->setClosecallback(std::bind(&Connection::closeCallback, this));
     clientChannel_->setErrorcallback(std::bind(&Connection::errorCallback, this));
@@ -90,6 +91,7 @@ void Connection::setsendCompleteCallback(std::function<void(spConnection)> fn)
 void Connection::onMessage(){
     LOG("Connection::onMessage(fd=%d) - Readable event triggered.", fd());
     //printf("我现在在Connection::onMessage里！\n");
+    lastActive_ = std::chrono::steady_clock::now();
     char buffer[1024];
     while(true){
         memset(buffer, 0, sizeof(buffer));
@@ -141,6 +143,7 @@ void Connection::send(const char *data, size_t size)
         printf("连接已经关闭，业务层不能再发送报文！\n");
         return;
     }
+    lastActive_ =  std::chrono::steady_clock::now();
     std::shared_ptr<std::string> message_(new std::string(data, size));
     if(loop_.isinLoopThread()){
         printf("当前在IO线程当中。\n");
@@ -182,4 +185,14 @@ void Connection::ConnectEstablished()
 bool Connection::isConnect() const
 {
     return !isDisconnect;
+}
+
+bool Connection::isIdle() const
+{
+    return (std::chrono::steady_clock::now() - lastActive_) > std::chrono::seconds(idleTimeoutSec_);
+}
+
+EventLoop* Connection::getloop() const
+{
+    return &loop_;
 }

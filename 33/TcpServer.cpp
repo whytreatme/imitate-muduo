@@ -2,22 +2,27 @@
 #include "Channel.h"
 #include <functional>
 #include "Logger.h"
+#include <vector>
 
 
 
 
-TcpServer::TcpServer(const std::string &ip, const uint16_t port, int numsthreads) 
-            : mainloop_(), nums_threads(numsthreads), threadpool_(nums_threads, "IO"),
+TcpServer::TcpServer(const std::string &ip, const uint16_t port, int numsthreads, int timerIntervalSec, int idleTimeoutSec) 
+            : timerIntervalSec_(timerIntervalSec),
+              idleTimeoutSec_(idleTimeoutSec),
+              mainloop_(), nums_threads(numsthreads), threadpool_(nums_threads, "IO"),
               acceptor_(mainloop_, ip, port)
+              
 {
-   mainloop_.setepollTimeoutCallback(std::bind(&TcpServer::epollTimeout, this, std::placeholders::_1));  
+  // mainloop_.setepollTimeoutCallback(std::bind(&TcpServer::epollTimeout, this, std::placeholders::_1));  
    acceptor_.setnewConnection(std::bind(&TcpServer::newConnection, this, std::placeholders::_1));
 
    //创建从事件循环
    for(int i = 0; i < nums_threads; i++)
    {
-        subloops_.emplace_back(new EventLoop);
-        subloops_[i]->setepollTimeoutCallback(std::bind(&TcpServer::epollTimeout, this, std::placeholders::_1));  
+        subloops_.emplace_back(new EventLoop(timerIntervalSec_));
+        subloops_[i]->setTimeoutCallback(std::bind(&TcpServer::epollTimeout, this ,std::placeholders::_1));
+       // subloops_[i]->setepollTimeoutCallback(std::bind(&TcpServer::epollTimeout, this, std::placeholders::_1));  
         threadpool_.addTask(" EventLoop", std::bind(&EventLoop::run, subloops_[i].get()));
    }
 }
@@ -49,7 +54,8 @@ void TcpServer::newConnection(std::unique_ptr<Socket> clientsock)
     //printf("接收到新的连接。\n");
     //Connection* conn = new Connection(mainloop_, clientsock);
     //把Connection分配给从事件循环
-    spConnection conn = std::make_shared<Connection>(*subloops_[clientsock->fd() % nums_threads], std::move(clientsock));
+    EventLoop *belongLoop = subloops_[clientsock->fd() % nums_threads].get();
+    spConnection conn = std::make_shared<Connection>(*belongLoop, std::move(clientsock), idleTimeoutSec_);
     LOG("TcpServer::newConnection - Setting callbacks for fd=%d", conn->fd());
     conn->setCloseCallback(std::bind(&TcpServer::closeConnection, this, std::placeholders::_1));
     conn->setErrorCallback(std::bind(&TcpServer::errorConnection, this, std::placeholders::_1));
@@ -57,7 +63,11 @@ void TcpServer::newConnection(std::unique_ptr<Socket> clientsock)
     conn->setsendCompleteCallback(std::bind(&TcpServer::sendComplete, this, std::placeholders::_1));
     //printf ("new Connection(fd=%d,ip=%s,port=%d) ok.\n",conn->fd(),conn->ip().c_str(),conn->port());
     LOG("TcpServer::newConnection - Callbacks set for fd=%d", conn->fd());
+    {
+    std::lock_guard<std::mutex> lock(mapMutex_);
     conns_[conn->fd()] = conn; 
+    loopConns_[belongLoop].emplace(conn->fd(), conn);
+    }
     if(newConnectionCallback_) {
         LOG("TcpServer::newConnection - Invoking application-level new connection callback for fd=%d", conn->fd());
         newConnectionCallback_(conn);
@@ -70,10 +80,12 @@ void TcpServer::errorConnection(spConnection conn)
 {
     LOG("TcpServer::errorConnection - Connection error for fd=%d", conn->fd());
     if(errorCallback_) errorCallback_(conn);
-    //printf("client(eventfd=%d) error.\n",conn->fd());
-    //close(fd());            // 关闭客户端的fd。
+    std::lock_guard<std::mutex> lock(mapMutex_);
     conns_.erase(conn->fd());
-    //delete conn;
+    auto it  = loopConns_.find(conn->getloop());
+    if(it == loopConns_.end()) return;
+    it->second.erase(conn->fd());
+   
 }
 
 //将接受到的报文计算并发回
@@ -89,11 +101,14 @@ void TcpServer::closeConnection(spConnection conn)
 {
     LOG("TcpServer::closeConnection - Closing connection for fd=%d", conn->fd());
     if(closeCallback_) closeCallback_(conn);
-    //std::cout << "client(eventfd= " << conn->fd() <<") disconnected.\n";
-    //close(fd());
+    std::lock_guard<std::mutex> lock(mapMutex_);
     conns_.erase(conn->fd());
-    //delete conn;
+    auto it  = loopConns_.find(conn->getloop());
+    if(it == loopConns_.end()) return;
+    it->second.erase(conn->fd());
 }
+
+
 
 void TcpServer::sendComplete(spConnection conn)
 {   
@@ -105,10 +120,23 @@ void TcpServer::sendComplete(spConnection conn)
 
 void TcpServer::epollTimeout(EventLoop *loop)
 {
-    if(timeOutCallback_) timeOutCallback_(loop);
-    //printf("epoll time out.\n");
+    std::vector<spConnection> expirationConns;
+    {
+    std::lock_guard<std::mutex> lock(mapMutex_);
+    auto it = loopConns_.find(loop);
+    if(it == loopConns_.end()) return;
 
-    //根据业务需求增加代码
+    auto &connMap = it->second;
+    
+    for(const auto & [fd, conn] : connMap){
+        if(conn->isIdle())
+            expirationConns.push_back(conn);
+    }
+    }
+    for(auto & conn : expirationConns){
+        closeConnection(conn);
+    }
+   
 }
 
 void TcpServer::setnewConnectionCallback(std::function<void (spConnection)> fn)
@@ -140,3 +168,4 @@ void TcpServer::settimeOutCallback(std::function<void(EventLoop*)> fn)
 {
     timeOutCallback_ = fn;
 }
+

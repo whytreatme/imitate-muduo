@@ -4,8 +4,11 @@
 #include "Logger.h"
 
 
-EchoServer::EchoServer(const std::string &ip, const uint16_t port, int subnums_threads, int trnumsthreads)
-    : tcpserver_(ip, port, subnums_threads), threadpool_(trnumsthreads, "WORKS")
+EchoServer::EchoServer(const std::string &ip, const uint16_t port, int subnums_threads, int trnumsthreads, int timerIntervalSec, int idleTimeoutSec)
+    : timerIntervalSec_(timerIntervalSec),
+       idleTimeoutSec_(idleTimeoutSec),
+       tcpserver_(ip, port, subnums_threads, timerIntervalSec_, idleTimeoutSec_), threadpool_(trnumsthreads, "WORKS")
+
 {
     tcpserver_.setcloseCallback(std::bind(&EchoServer::HandleClose, this, std::placeholders::_1));
     tcpserver_.seterrorCallback(std::bind(&EchoServer::HandleError, this, std::placeholders::_1));

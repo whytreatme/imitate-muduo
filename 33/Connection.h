@@ -7,6 +7,7 @@
 #include <atomic>
 #include <mutex>
 #include "Buffer.h"
+#include <chrono>
 
 
 class Connection;
@@ -14,14 +15,18 @@ using spConnection = std::shared_ptr<Connection>;
 
 class Connection : public std::enable_shared_from_this<Connection>{
 private:
+    int idleTimeoutSec_;            //用于设置空闲时间
+
     EventLoop &loop_;
     std::unique_ptr<Socket> clientsock_;
     std::unique_ptr<Channel> clientChannel_;
     Buffer inputbuffer_;             //增加接受缓冲区
     Buffer outputbuffer_;            //发送接受缓冲区
-    std::atomic_bool isDisconnect;   //同步机制维护线程安全的发送方法
 
+    std::atomic_bool isDisconnect;   //同步机制维护线程安全的发送方法
     std::mutex mutex_;
+
+    std::chrono::steady_clock::time_point lastActive_;
 
     //回调函数区
     std::function<void(spConnection)> closeCallback_;
@@ -30,7 +35,7 @@ private:
     std::function<void(spConnection)> sendCompleteCallback_;
     
 public:
-    Connection(EventLoop &loop, std::unique_ptr<Socket>);
+    Connection(EventLoop &loop, std::unique_ptr<Socket>, int idleTimeoutSec=180);
     ~Connection();
 
     int fd() const;
@@ -50,4 +55,8 @@ public:
 
     void ConnectEstablished();
     bool isConnect () const;
+
+    bool isIdle() const;
+
+    EventLoop* getloop() const;
 };
